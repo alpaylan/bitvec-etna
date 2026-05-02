@@ -1,0 +1,36 @@
+Synthetic re-construction of upstream bug fix
+4ce4b31872daa86d01ccab26ad58fbaacd26d978 ("Fix a grave bug in bitIndex").
+
+The buggy `bitIndexInWords` returned the bit's position within the
+word it was found in, ignoring how many words had already been
+searched. So `bitIndex` would report e.g. `Just 36` for a vector
+whose only set bit was at index 100 (= word 1, bit 36). The fix adds
+back the word offset (`mulWordSize (n - off)`).
+
+Note: modern `bitIndex` short-circuits to a SIMD C path when the
+input is offset 0 *and* word-aligned. The bug only surfaces on the
+fallback Haskell path; the property forces non-aligned inputs to
+exercise it.
+
+Reverse-applying installs the bug; forward-applying restores the fix.
+
+diff --git a/src/Data/Bit/Immutable.hs b/src/Data/Bit/Immutable.hs
+--- a/src/Data/Bit/Immutable.hs
++++ b/src/Data/Bit/Immutable.hs
+@@ -644,14 +644,14 @@ bitIndexInWords (Bit True) !off !len !arr = go off
+     | n >= off + len = Nothing
+     | otherwise = case ffs (indexByteArray arr n) of
+       Nothing  -> go (n + 1)
+-      r@Just{} -> r
++      Just r  -> Just $ mulWordSize (n - off) + r
+ bitIndexInWords (Bit False) !off !len !arr = go off
+  where
+   go !n
+     | n >= off + len = Nothing
+     | otherwise = case ffs (complement (indexByteArray arr n)) of
+       Nothing -> go (n + 1)
+-      r@Just{} -> r
++      Just r  -> Just $ mulWordSize (n - off) + r
+
+ -- | Return the index of the @n@-th bit in the vector
+ -- with the specified value, if any.

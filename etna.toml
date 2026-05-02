@@ -1,0 +1,99 @@
+name = "bitvec"
+description = "Space-efficient bit vectors (Bodigrim/bitvec). Bug fixes mined from upstream history; modern HEAD is the base, each patch reverse-applies a fix to install the original bug. Mining concentrates on pure-Haskell paths (Internal, Immutable, F2Poly) and avoids C/SIMD/FFI subtrees."
+language = "haskell"
+strategies = ["quickcheck", "hedgehog", "falsify", "smallcheck"]
+crate = "bitvec"
+base_commit = "511faae60e753918dcaaac861e628eef7e60c479"
+
+# ---------------------------------------------------------------------------
+# Variant: read_instance_returns_false_779e7d55_1
+# ---------------------------------------------------------------------------
+[[tasks]]
+mutations = ["read_instance_returns_false_779e7d55_1"]
+
+[tasks.source]
+repo = "https://github.com/Bodigrim/bitvec"
+commits = ["779e7d5534b9ab5367e2924964af4b906454f969"]
+commit_subjects = ["Fix Read instance of Bit"]
+origin = "internal"
+summary = "The buggy 'Read Bit' instance parsed the input character '1' as 'Bit False' (only '0' round-tripped through 'show'/'read'). The fix returns 'Bit True' for '1', making 'read . show' total."
+
+[tasks.injection]
+kind = "patch"
+files = ["src/Data/Bit/Internal.hs"]
+locations = [{ file = "src/Data/Bit/Internal.hs", line = 121, symbol = "Read Bit / readsPrec" }]
+patch = "patches/read_instance_returns_false_779e7d55_1.patch"
+
+[tasks.bug]
+short_name = "read_bit_one_returns_false"
+invariant = "For every Bool b, 'read (show (Bit b)) :: Bit' must equal 'Bit b'. Equivalently, the Read instance for Bit must round-trip with the Show instance, in particular for '1'."
+how_triggered = "Reverse-applying the patch reverts the second clause of 'readsPrec' so that the input character '1' is parsed as 'Bit False'. Calling 'read \"1\" :: Bit' then returns 'Bit False' rather than 'Bit True'."
+
+[[tasks.tasks]]
+property = "ReadBitRoundTrip"
+witnesses = [
+  { test_fn = "witness_read_bit_round_trip_case_true",  note = "read (show (Bit True))  must equal Bit True" },
+  { test_fn = "witness_read_bit_round_trip_case_false", note = "read (show (Bit False)) must equal Bit False (always passes; pinned for symmetry)" },
+]
+
+# ---------------------------------------------------------------------------
+# Variant: f2poly_signum_id_aba8a62f_1
+# ---------------------------------------------------------------------------
+[[tasks]]
+mutations = ["f2poly_signum_id_aba8a62f_1"]
+
+[tasks.source]
+repo = "https://github.com/Bodigrim/bitvec"
+commits = ["aba8a62f9893f0ba18ec11fc2dc6d6983a2896b6"]
+commit_subjects = ["Fix F2Poly.signum"]
+origin = "internal"
+summary = "The original buggy F2Poly.signum was 'id': it returned the input polynomial unchanged. The fix returns the constant-1 polynomial for any non-zero input. (Modern HEAD's 'const one' replaces the original 'const (F2Poly (U.singleton (Bit True)))' — see commit a5216fc1 for the follow-up that taught 'one' to construct a properly-aligned word array.) Reverse-applying installs the original 'id' form."
+
+[tasks.injection]
+kind = "patch"
+files = ["src/Data/Bit/F2Poly.hs"]
+locations = [{ file = "src/Data/Bit/F2Poly.hs", line = 110, symbol = "instance Num F2Poly / signum" }]
+patch = "patches/f2poly_signum_id_aba8a62f_1.patch"
+
+[tasks.bug]
+short_name = "f2poly_signum_returns_input"
+invariant = "For every non-zero F2Poly p, 'signum p' must equal '1 :: F2Poly'. (For the zero polynomial, signum is 0; the property discards zero inputs to keep base-vs-buggy detection orthogonal.)"
+how_triggered = "Reverse-applying the patch swaps 'signum = const one' for 'signum = id'. Calling 'signum (3 :: F2Poly)' then returns the input polynomial '0b11' instead of '1'."
+
+[[tasks.tasks]]
+property = "F2PolySignumOne"
+witnesses = [
+  { test_fn = "witness_f2_poly_signum_one_case_three",     note = "signum (fromInteger 3 :: F2Poly) must equal 1" },
+  { test_fn = "witness_f2_poly_signum_one_case_fortytwo",  note = "signum (fromInteger 42 :: F2Poly) must equal 1" },
+]
+
+# ---------------------------------------------------------------------------
+# Variant: bit_index_misses_word_offset_4ce4b318_1
+# ---------------------------------------------------------------------------
+[[tasks]]
+mutations = ["bit_index_misses_word_offset_4ce4b318_1"]
+
+[tasks.source]
+repo = "https://github.com/Bodigrim/bitvec"
+commits = ["4ce4b31872daa86d01ccab26ad58fbaacd26d978"]
+commit_subjects = ["Fix a grave bug in bitIndex"]
+origin = "internal"
+summary = "The buggy 'bitIndexInWords' returned the bit's position within the word it was found in, ignoring how many words had already been searched. So 'bitIndex' would report e.g. 'Just 36' for a vector whose only set bit was at index 100 (= word 1, bit 36). The fix adds the word offset back in via 'mulWordSize (n - off) + r'."
+
+[tasks.injection]
+kind = "patch"
+files = ["src/Data/Bit/Immutable.hs"]
+locations = [{ file = "src/Data/Bit/Immutable.hs", line = 647, symbol = "bitIndexInWords" }]
+patch = "patches/bit_index_misses_word_offset_4ce4b318_1.patch"
+
+[tasks.bug]
+short_name = "bit_index_returns_within_word"
+invariant = "For every non-empty vector v with a single set bit at position p (where p >= 64 and length v is not word-aligned, so the SIMD short-circuit does not apply), 'bitIndex (Bit True) v' must equal 'Just p'."
+how_triggered = "Reverse-applying the patch removes the word-offset addition in both branches of 'bitIndexInWords'. For a length-200 vector with the only True bit at index 100, 'bitIndex 1 v' then returns 'Just 36' (= 100 mod 64) instead of 'Just 100'."
+
+[[tasks.tasks]]
+property = "BitIndexWordOffset"
+witnesses = [
+  { test_fn = "witness_bit_index_word_offset_case_pos100_len200", note = "bitIndex 1 (length 200, set at 100) must equal Just 100" },
+  { test_fn = "witness_bit_index_word_offset_case_pos130_len150", note = "bitIndex 1 (length 150, set at 130) must equal Just 130" },
+]
