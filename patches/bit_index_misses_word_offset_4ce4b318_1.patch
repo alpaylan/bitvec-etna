@@ -1,21 +1,21 @@
 diff --git a/src/Data/Bit/Immutable.hs b/src/Data/Bit/Immutable.hs
-index 4c08e97..5cfa7c5 100644
+index 5cfa7c5..4c08e97 100644
 --- a/src/Data/Bit/Immutable.hs
 +++ b/src/Data/Bit/Immutable.hs
 @@ -644,14 +644,14 @@ bitIndexInWords (Bit True) !off !len !arr = go off
      | n >= off + len = Nothing
      | otherwise = case ffs (indexByteArray arr n) of
        Nothing  -> go (n + 1)
--      Just r  -> Just $ mulWordSize (n - off) + r
-+      r@Just{} -> r
+-      r@Just{} -> r
++      Just r  -> Just $ mulWordSize (n - off) + r
  bitIndexInWords (Bit False) !off !len !arr = go off
   where
    go !n
      | n >= off + len = Nothing
      | otherwise = case ffs (complement (indexByteArray arr n)) of
        Nothing -> go (n + 1)
--      Just r  -> Just $ mulWordSize (n - off) + r
-+      r@Just{} -> r
+-      r@Just{} -> r
++      Just r  -> Just $ mulWordSize (n - off) + r
  
  -- | Return the index of the @n@-th bit in the vector
  -- with the specified value, if any.
