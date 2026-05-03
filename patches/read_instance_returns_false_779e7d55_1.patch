@@ -1,20 +1,13 @@
-Synthetic re-construction of upstream bug fix
-779e7d5534b9ab5367e2924964af4b906454f969 ("Fix Read instance of Bit").
-
-The buggy Read Bit instance returned Bit False for the input character
-'1', breaking the `read . show` round-trip for Bit True.
-
-Reverse-applying installs the bug; forward-applying restores the fix.
-
 diff --git a/src/Data/Bit/Internal.hs b/src/Data/Bit/Internal.hs
+index c9134ea..5dbb07e 100644
 --- a/src/Data/Bit/Internal.hs
 +++ b/src/Data/Bit/Internal.hs
-@@ -118,7 +118,7 @@ instance Read Bit where
+@@ -118,7 +118,7 @@ instance Show Bit where
  instance Read Bit where
    readsPrec p (' ' : rest) = readsPrec p rest
    readsPrec _ ('0' : rest) = [(Bit False, rest)]
--  readsPrec _ ('1' : rest) = [(Bit False, rest)]
-+  readsPrec _ ('1' : rest) = [(Bit True, rest)]
+-  readsPrec _ ('1' : rest) = [(Bit True, rest)]
++  readsPrec _ ('1' : rest) = [(Bit False, rest)]
    readsPrec _ _            = []
-
+ 
  instance U.Unbox Bit

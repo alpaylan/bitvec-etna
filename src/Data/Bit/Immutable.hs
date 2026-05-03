@@ -644,14 +644,14 @@ bitIndexInWords (Bit True) !off !len !arr = go off
     | n >= off + len = Nothing
     | otherwise = case ffs (indexByteArray arr n) of
       Nothing  -> go (n + 1)
-      Just r  -> Just $ mulWordSize (n - off) + r
+      r@Just{} -> r
 bitIndexInWords (Bit False) !off !len !arr = go off
  where
   go !n
     | n >= off + len = Nothing
     | otherwise = case ffs (complement (indexByteArray arr n)) of
       Nothing -> go (n + 1)
-      Just r  -> Just $ mulWordSize (n - off) + r
+      r@Just{} -> r
 
 -- | Return the index of the @n@-th bit in the vector
 -- with the specified value, if any.

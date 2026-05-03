@@ -1,25 +1,13 @@
-Synthetic re-construction of upstream bug fix
-aba8a62f9893f0ba18ec11fc2dc6d6983a2896b6 ("Fix F2Poly.signum").
-
-The original buggy F2Poly.signum was `id`, returning the input
-polynomial unchanged. The fix returns the constant 1 polynomial for any
-non-zero input. The original commit hand-coded a `Bit True` singleton;
-modern HEAD uses a pre-defined `one` value, so this synthetic patch
-re-introduces the `id` form against modern HEAD.
-
-Reverse-applying installs the bug; forward-applying restores the fix.
-
 diff --git a/src/Data/Bit/F2Poly.hs b/src/Data/Bit/F2Poly.hs
+index c307290..e69104d 100644
 --- a/src/Data/Bit/F2Poly.hs
 +++ b/src/Data/Bit/F2Poly.hs
-@@ -105,7 +105,7 @@ instance Num F2Poly where
- instance Num F2Poly where
-   (+) = coerce xorBits
+@@ -107,7 +107,7 @@ instance Num F2Poly where
    (-) = coerce xorBits
    negate = id
    abs    = id
--  signum = id
-+  signum = const one
+-  signum = const one
++  signum = id
    (*) = coerce ((dropWhileEnd .) . karatsuba)
    fromInteger !n = case n of
      IS i#

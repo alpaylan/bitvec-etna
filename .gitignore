@@ -42,3 +42,9 @@ cabal.sandbox.config
 progress.jsonl
 etna.log
 
+/.hegel/
+/.marauders/
+/etna.log
+/progress.jsonl
+/dist-newstyle/
+/etna/dist-newstyle/
